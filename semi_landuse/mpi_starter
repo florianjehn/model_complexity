@@ -1,0 +1,25 @@
+#!/bin/bash
+#$ -S /bin/bash
+#$ -N fulda                #jobname
+#$ -cwd                          #change to the current 
+                                 #working directory during submission
+#$ -V                            #import environment variables
+#$ -j y                          #stderr -> stdout redirection
+#$ -q regular                       #job-queue, regular==5 days max runtime
+                                 #or long (lower priority)
+#$ -l h_rt=70:00:00             #maximum estimated runtime, e.g. 24 hours
+#$ -l h_vmem=1.9G                #maximum requested memory per core
+
+#$ -pe openmpi 128                #request parallel environment 'openmpi'
+                                 #with 4 cores (64/96 max)
+
+#$ -m eas                  #notify bycd fh mail on end, abort, suspend
+
+
+export OPENBLAS_NUM_THREADS=1
+
+date                             #log start time
+export PYTHONPATH=$PYTHONPATH:/homes/sf1962/.local/lib/python3.5/site-packages
+mpirun python3 $@       #start program
+
+exit
