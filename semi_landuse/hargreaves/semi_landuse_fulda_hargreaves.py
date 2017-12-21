@@ -84,8 +84,7 @@ class SemiDisLanduse:
                 timeseries = self.read_timeseries(name)
                 subcatchments[sub]["data"][data_type] = timeseries
 
-        dis_eval = self.read_timeseries("Q_Kammerzell_1979_1999.txt",
-                                        convert=True)
+        dis_eval = self.read_timeseries("dis_eval_kaemmerzell_79_89.txt")
 
         return dis_eval, subcatchments
 
@@ -129,6 +128,7 @@ class SemiDisLanduse:
                   param('tr_gw_out', 1., 650.),
                   # V0_soil = field capacity for the soil
                   param('V0_soil', 1., 300.),
+                  param("V0_gw", 1, 300.),
                   # beta_soil_GW = Changes the flux curve of the soil
                   # to the groundwater
                   param('beta_soil_gw', 0.5, 6.0),
@@ -166,8 +166,11 @@ class SemiDisLanduse:
             dis_sim = cmf.timeseries(self.begin, cmf.day)
             # starts the solver and calculates the daily time steps
             end = self.end
+
+
             for t in solver.run(self.project.meteo_stations[0].T.begin,
                                 end, cmf.day):
+
                 # Fill the results (first year is included but not used to
                 # calculate the NS)
                 # print(self.project.cells[0].layers[0].flux_to(self.outlet,t ))
@@ -177,8 +180,11 @@ class SemiDisLanduse:
             return dis_sim
         # Return an nan - array when a runtime error occurs
         except RuntimeError:
-            return np.array(self.dis_eval[
+            dis_sim = np.array(self.dis_eval[
                             self.begin:self.end + datetime.timedelta(days=1)])*np.nan
+            ET = np.array(self.dis_eval[
+                            self.begin:self.end + datetime.timedelta(days=1)])*np.nan
+            return dis_sim
 
     def simulation(self, vector):
         """
@@ -189,7 +195,9 @@ class SemiDisLanduse:
         self.set_parameters(paramdict)
         discharge = self.run_model()
         print("Simulation")
+        print(discharge.begin, discharge.end)
         print(type(discharge))
+        print(len(discharge))
         discharge = np.array(discharge)
         # CMF outputs discharge in m³/day
         # Measured discharge is in m³/s
@@ -207,7 +215,9 @@ class SemiDisLanduse:
         dis_eval = self.dis_eval[self.begin:self.end +
                                                  datetime.timedelta(days=1)]
         print("Evaluation")
+        print(dis_eval.begin, dis_eval.end)
         print(type(dis_eval))
+        print(len(dis_eval))
         return np.array(dis_eval)
 
     def parameters(self):
@@ -221,13 +231,7 @@ class SemiDisLanduse:
         """
         For Spotpy
         """
-        # print("test")
-        # plt.plot(simulation, label = "simulation")
-        # plt.plot(evaluation, label = "evaluation")
-        # plt.legend()
-        # name = "test_"+ str(datetime.datetime.timestamp(datetime.datetime.now()))+".jpg"
-        # plt.savefig(name, dpi= 300)
-        # plt.close()
+
         
         # Slice the arrays to only use the days of the calibration period
         # for objective function
@@ -242,6 +246,18 @@ class SemiDisLanduse:
         ns_validation = spotpy.objectivefunctions.nashsutcliffe(
                                                         evaluation_validation,
                                                         simulation_validation)
+        if ns_calibration > 0:
+            plt.plot(simulation * 86400, label="simulation_"+str(
+                ns_calibration),
+                     alpha=0.7)
+            plt.plot(evaluation * 86400, label="evaluation", alpha=0.7)
+            plt.plot(model.ET, label="ET", alpha=0.7)
+            plt.legend()
+            name = "test_" + str(datetime.datetime.timestamp(
+                datetime.datetime.now()))+".jpg"
+            plt.savefig(name, dpi=300)
+            plt.close()
+
         return [ns_calibration, ns_validation]
 
 if __name__ == '__main__':
@@ -253,13 +269,13 @@ if __name__ == '__main__':
 
     prefix = "semi_dis_height"
 
-    runs = 10
+    runs = 2
 
     # File names of the forcing data
     subcatchment_names = ["grass", "wood", "rest", "crops"]
 
     # import algorithm
-    from spotpy.algorithms import lhs as sampler
+    from spotpy.algorithms import mc as sampler
 
     # Find out if the model should run parallel (for supercomputer)
     parallel = 'mpi' if 'OMPI_COMM_WORLD_SIZE' in os.environ else 'seq'
@@ -268,7 +284,7 @@ if __name__ == '__main__':
     model = SemiDisLanduse(datetime.datetime(begin, 1, 1),
                            datetime.datetime(end, 12, 31),
                            subcatchment_names)
-
     sampler = sampler(model, parallel=parallel, dbname="semi_dis_height",
                       dbformat="csv", save_sim=True, save_threshold=[0,0])
     sampler.sample(runs)#, subsets=30)
+    print(cmf.describe(model.project))

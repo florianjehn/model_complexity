@@ -21,24 +21,24 @@ class SimpleLumped(object):
     def __init__(self, begin, end):
         """Initializes the model and build the core setup"""
         # tr_soil_GW = Residence time of the water in the soil to the GW
-        self.params = [param("tr_soil_out", 0., 200.),
+        self.params = [param("tr_soil_out_days", 0., 200.),
                        # tr_GW_out = Residence time in the groundwater to
                        #  the outlet
-                       param('V0_soil', 0., 300.),
+                       param('V0_soil_mm', 0., 300.),
                        # beta_soil_out = exponent that changes the form of the
                        # flux from the soil to the outlet
                        param("beta_soil_out", 0.3, 8.0),
                        # ETV1 = the Volume that defines that the evaporation
                        # is lowered because of not enough water in the soil
-                       param('ETV1', 0., 300.),
+                       param('ETV1_mm', 0., 300.),
                        # fETV0 = factor the ET is multiplied by, when water is
                        #  low
                        param('fETV0', 0., 0.9),
                        # Rate of snow melt
-                       param('meltrate', 0.01, 15.),
+                       param('meltrate_mm_degC_day', 0.01, 15.),
                        # Snow_melt_temp = Temperature at which the snow melts
                        # (needed because of averaged temp
-                       param('snow_melt_temp', -3.0, 3.0)
+                       param('snow_melt_temp_degC', -3.0, 3.0)
                        ]
         self.begin = begin
         self.end = end
@@ -55,7 +55,7 @@ class SimpleLumped(object):
         p = self.project
 
         # Create a cell in the project
-        c = p.NewCell(0, 0, 0, 1000)
+        c = p.NewCell(0, 0, 0, 562 * 1e6)
 
         # Add snow storage
         c.add_storage("Snow", "S")
@@ -79,17 +79,17 @@ class SimpleLumped(object):
 
 
     def set_parameters(self,
-                       tr_soil_out,
+                       tr_soil_out_days,
 
-                       V0_soil,
+                       V0_soil_mm,
 
                        beta_soil_out,
 
-                       ETV1,
+                       ETV1_mm,
                        fETV0,
 
-                       meltrate,
-                       snow_melt_temp,
+                       meltrate_mm_degC_day,
+                       snow_melt_temp_degC,
                        ):
         """
         Creates all connections with the parameter values produced by the
@@ -101,16 +101,20 @@ class SimpleLumped(object):
         outlet = self.outlet
         soil = c.layers[0]
 
+        ETV1_m3 = (ETV1_mm / 1000) * c.area
+        V0_soil_m3 = (V0_soil_mm / 1000) * c.area
+
         # Adjustment of the ET
-        c.set_uptakestress(cmf.VolumeStress(ETV1,ETV1 * fETV0))
+        c.set_uptakestress(cmf.VolumeStress(ETV1_m3, ETV1_m3 * fETV0))
 
         # Flux from soil to outlet
-        cmf.kinematic_wave(soil, outlet, tr_soil_out/V0_soil, V0=V0_soil,
+        cmf.kinematic_wave(soil, outlet, tr_soil_out_days/V0_soil_m3,
+                           V0=V0_soil_m3,
                            exponent=beta_soil_out)
 
         # # Set parameters of the snow calculations
-        cmf.Weather.set_snow_threshold(snow_melt_temp)
-        cmf.SimpleTindexSnowMelt(c.snow, soil, c, rate=meltrate)
+        cmf.Weather.set_snow_threshold(snow_melt_temp_degC)
+        cmf.SimpleTindexSnowMelt(c.snow, soil, c, rate=meltrate_mm_degC_day)
 
     def loadPETQ(self):
         """
@@ -129,7 +133,7 @@ class SimpleLumped(object):
         # Convert m3/s to mm/day
         area_catchment = 562.41
         # 86400 = seconds per day
-        discharge *= 86400 * 1e3 / (area_catchment * 1e6)
+        #discharge *= 86400 * 1e3 / (area_catchment * 1e6)
         temp = cmf.timeseries(begin, step)
         temp_min = cmf.timeseries(begin, step)
         temp_max = cmf.timeseries(begin, step)
@@ -219,6 +223,7 @@ class SimpleLumped(object):
             resQ = np.array(self.Q[
                             self.begin:self.end + datetime.timedelta(
                                 days=1)])*np.nan
+        resQ = resQ / 86400
         return np.array(resQ)
 
     def evaluation(self):
@@ -267,7 +272,7 @@ if __name__ == '__main__':
     prefix = "simple_lumped"
 
     # Number of runs
-    runs = 150
+    runs = 15
 
     # File names of the forcing data
     fnQ = "Q_Kammerzell_1979_1999.txt"
@@ -275,7 +280,7 @@ if __name__ == '__main__':
     fnP = "P_Krigavg_kammerzell_1979_1999.txt"
 
     # import algorithm
-    from spotpy.algorithms import rope as Sampler
+    from spotpy.algorithms import lhs as Sampler
     #Sampler = rope.rope
 
     # Find out if the model should run parallel (for supercomputer)
@@ -294,6 +299,6 @@ if __name__ == '__main__':
     if runs:
         sampler = Sampler(model, parallel=parallel, dbname="simple_lumped",
                           dbformat="csv", save_sim=True,save_threshold=0.0)
-        sampler.sample(runs, subsets=30)
+        sampler.sample(runs)#, subsets=30)
 
 

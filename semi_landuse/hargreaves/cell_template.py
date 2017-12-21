@@ -59,11 +59,14 @@ class CellTemplate:
         
         # EVT1 must be adjusted to cell size
         ETV1 = params["ETV1"]
-        ETV1 = (ETV1 / 1000) * self.size * 1e6
+        ETV1 = (ETV1 / 1000) * cell.area
         
         # V0 must be adjusted to cell size as well
-        V0 = params["V0_soil"]
-        V0 = (V0 / 1000) * self.size * 1e6
+        V0_soil = params["V0_soil"]
+        V0_soil = (V0_soil / 1000) * cell.area
+
+        V0_gw = params["V0_gw"]
+        V0_gw = (V0_gw / 1000) * cell.area
         
         # Adjustment of the ET
         cell.set_uptakestress(cmf.VolumeStress(
@@ -73,14 +76,14 @@ class CellTemplate:
         # Flux from soil to outlet
         cmf.kinematic_wave(soil,
                            outlet,
-                           params["tr_soil_out"] / V0,
-                           V0=V0,
+                           params["tr_soil_out"] / V0_soil,
+                           V0=V0_soil,
                            exponent=params["beta_soil_out"])
 
         # Flux from soil to groundwater
         cmf.kinematic_wave(soil, gw,
-                           params["tr_soil_gw"] / V0,
-                           V0=V0,
+                           params["tr_soil_gw"] / V0_soil,
+                           V0=V0_soil,
                            exponent=params["beta_soil_gw"])
 
         # Flux from the  groundwater to the outlet (baseflow)
