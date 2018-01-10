@@ -4,7 +4,6 @@ Created on Jan 09 10:39 2018
 @author(s): Florian U. Jehn
 """
 
-import sys
 import datetime
 import cmf
 import spotpy
@@ -32,6 +31,7 @@ class ScalingTester:
 
     # Outflow parameters
     tr = Uniform(0.1, 1000, doc='Residence time of water in storage when V=V0')
+    beta = Uniform(0.5, 3, doc="Exponent for scaling the outflow")
 
     def __init__(self, begin=None, end=None, num_cells=None):
         """
@@ -42,7 +42,7 @@ class ScalingTester:
         :param num_cells: Number of cells used for this layout
         :return: None
         """
-        self.dbname = "scaling_tester_" + str(num_cells)
+        self.dbname = "scaling_tester_num_cells_" + str(num_cells)
 
         # load driver data
         self.data = DataProvider("fulda_kaemmerzell_climate_79_89.csv")
@@ -167,13 +167,17 @@ class CellTemplate:
         c = self.cell
         out = self.outlet
 
+        # Scale V0 to the cellsize
+        V0 = (par.V0 / 1000) * self.area * 1e6
+
         # Set uptake stress
-        ETV1 = par.fETV1 * par.V0
+        ETV1 = par.fETV1 * V0
         ETV0 = par.fETV0 * ETV1
         c.set_uptakestress(cmf.VolumeStress(ETV1, ETV0))
 
         # Connect layer with outlet
-        cmf.LinearStorageConnection(c.layers[0], out, par.tr)
+        cmf.PowerLawConnection(c.layers[0], out, Q0=par.tr, V0=par.V0,
+                               beta=par.beta)
 
 
 class DataProvider:
@@ -218,13 +222,13 @@ class DataProvider:
         :param project: A cmf.project
         :return: rainstation, meteo
         """
-        rainstation = project.rainfall_stations.add('Grebenau avg', self.P,
+        rainstation = project.rainfall_stations.add('Kaemmerzell avg', self.P,
                                                     (0, 0, 0))
 
         project.use_nearest_rainfall()
 
         # Temperature data
-        meteo = project.meteo_stations.add_station('Grebenau avg',
+        meteo = project.meteo_stations.add_station('Kaemmerzell avg',
                                                    (0, 0, 0))
         meteo.T = self.T
         meteo.Tmin = self.Tmin
@@ -241,38 +245,22 @@ if __name__ == '__main__':
     # Check if we are running on a supercomputer or local
     parallel = 'mpi' if 'OMPI_COMM_WORLD_SIZE' in os.environ else 'seq'
 
-    # Create the model
-    model = ScalingTester(num_cells=1)
 
-    # Get number of runs
-    if 'SPOTPYRUNS' in os.environ:
-        # from environment
-        runs = int(os.environ['SPOTPYRUNS'])
-    elif len(sys.argv) > 1:
-        # from command line
-        runs = int(sys.argv[1])
-    else:
-        # run once
-        runs = 50
+    runs = 50
+    num_cells = [1, 2, 4, 8]
+    results = {}
+    for num in num_cells:
+        # Create the model
+        model = ScalingTester(num_cells=num)
+        print(cmf.describe(model.project))
+        # Create the sampler
+        sampler = Sampler(model, parallel=parallel, dbname=model.dbname,
+                          dbformat='csv', save_sim=False)
 
-    # Create the sampler
-    sampler = Sampler(model, parallel=parallel, dbname=model.dbname,
-                      dbformat='csv', save_sim=True)
-
-    # Print our configuration
-    # print(spotpy.describe.describe(sampler))
-    # Print the cmf setup
-    print(cmf.describe(model.project))
-
-    # Do the sampling
-    if runs > 1:
-        # Now we can sample with the implemented Monte Carlo algortihm:
         sampler.sample(runs)
-    else:
-        result = model.simulation()
-        for name, value in spotpy.objectivefunctions.calculate_all_functions(
-                model.evaluation(), result):
-            try:
-                print('{:>30.30s} = {:0.6g}'.format(name, value))
-            except ValueError:
-                print('{:>30.30s} = {}'.format(name, value))
+        results[str(num)] = sampler.status.objectivefunction
+
+    for key, value in results.items():
+        print("The model with {} cell(s) has a best NS of {}".format(
+                                                                    key,
+                                                                    value))
