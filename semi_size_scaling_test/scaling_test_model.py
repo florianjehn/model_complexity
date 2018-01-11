@@ -23,15 +23,22 @@ class ScalingTester:
     area = 562.41
 
     # General storage parameter
-    V0 = Uniform(10, 10000, 1000)
+    V0_L1 = Uniform(10, 300)
 
     # ET parameter
-    fETV1 = Uniform(0.01, 1, 0.2, doc='if V<fETV1*V0, water uptake stress for plants starts')
-    fETV0 = Uniform(0, 0.9, 0.2, doc='if V<fETV0*fETV1*V0, plants die of drought')
+    fETV1 = Uniform(0.01, 1, doc='if V<fETV1*V0, water uptake stress for '
+                    'plants starts')
+    fETV0 = Uniform(0, 0.9, doc='if V<fETV0*fETV1*V0, plants die of drought')
 
     # Outflow parameters
-    tr = Uniform(0.1, 1000, doc='Residence time of water in storage when V=V0')
-    beta = Uniform(0.5, 3, doc="Exponent for scaling the outflow")
+    tr_L1 = Uniform(0.1, 200, doc='Residence time of water in storage when '
+                    'V=V0')
+    beta_L1 = Uniform(0.5, 4, doc="Exponent for scaling the outflow")
+
+    # Snow parameters
+    snow_meltrate = Uniform(3, 10, doc="Meltrate of the snow")
+    snow_melt_temp = Uniform(0, 3.5, doc="Temperature at which the snow "
+                             "melts")
 
     def __init__(self, begin=None, end=None, num_cells=None):
         """
@@ -124,16 +131,15 @@ class ScalingTester:
         """
         self.setparameters(vector)
         result_q = self.runmodel()
+        result_q /= 86400
         return np.array(result_q[self.begin:self.end])
 
     def evaluation(self):
         """Returns the evaluation data"""
-        runoff_mm = self.data.runoff_mm(self.area)
-
-        return np.array(
-                runoff_mm[self.begin:self.end])
+        return np.array(self.data.Q[self.begin:self.end])
 
     def objectivefunction(self, simulation, evaluation):
+        """Calculates the objective function"""
         return spotpy.objectivefunctions.nashsutcliffe(evaluation, simulation)
 
 
@@ -157,6 +163,9 @@ class CellTemplate:
         self.cell.add_layer(2.0)
         # Install a connection for the ET
         cmf.HargreaveET(self.cell.layers[0], self.cell.transpiration)
+        # Add Snow
+        self.cell.add_storage("Snow", "S")
+        cmf.Snowfall(self.cell.snow, self.cell)
 
     def set_parameters(self, par):
         """
@@ -167,17 +176,23 @@ class CellTemplate:
         c = self.cell
         out = self.outlet
 
-        # Scale V0 to the cellsize
-        V0 = (par.V0 / 1000) * self.area * 1e6
+        # Scale to the cellsize
+        V0_L1 = (par.V0_L1 / 1000) * self.area * 1e6
 
         # Set uptake stress
-        ETV1 = par.fETV1 * V0
+        ETV1 = par.fETV1 * V0_L1
         ETV0 = par.fETV0 * ETV1
         c.set_uptakestress(cmf.VolumeStress(ETV1, ETV0))
 
         # Connect layer with outlet
-        cmf.PowerLawConnection(c.layers[0], out, Q0=par.tr, V0=par.V0,
-                               beta=par.beta)
+        cmf.PowerLawConnection(c.layers[0], out, Q0=V0_L1 / par.tr_L1,
+                               V0=V0_L1,
+                               beta=par.beta_L1)
+
+        # Snow
+        cmf.SimpleTindexSnowMelt(c.snow, c.layers[0], c,
+                                 rate=par.snow_meltrate)
+        cmf.Weather.set_snow_threshold(par.snow_melt_temp)
 
 
 class DataProvider:
@@ -207,14 +222,12 @@ class DataProvider:
                                               data["Prec"])
         self.T = cmf.timeseries.from_sequence(self.begin, self.step,
                                               data["tmean"])
-        self.Tmin = cmf.timeseries.from_sequence(self.begin, self.step, data["tmin"])
-        self.Tmax = cmf.timeseries.from_sequence(self.begin, self.step, data["tmax"])
-        self.Q = cmf.timeseries.from_sequence(self.begin, self.step, data["Q"])
-
-    def runoff_mm(self, area):
-        sec_per_day = 86400
-        mm_per_m = 1000
-        return self.Q * sec_per_day / area * mm_per_m
+        self.Tmin = cmf.timeseries.from_sequence(self.begin, self.step,
+                                                 data["tmin"])
+        self.Tmax = cmf.timeseries.from_sequence(self.begin, self.step,
+                                                 data["tmax"])
+        self.Q = cmf.timeseries.from_sequence(self.begin, self.step,
+                                              data["Q"])
 
     def add_stations(self, project):
         """
@@ -246,7 +259,7 @@ if __name__ == '__main__':
     parallel = 'mpi' if 'OMPI_COMM_WORLD_SIZE' in os.environ else 'seq'
 
 
-    runs = 50
+    runs = 100
     num_cells = [1, 2, 4, 8]
     results = {}
     for num in num_cells:
