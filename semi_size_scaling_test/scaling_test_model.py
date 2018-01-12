@@ -24,21 +24,34 @@ class ScalingTester:
 
     # General storage parameter
     V0_L1 = Uniform(10, 300)
+    V0_L2 = Uniform(10, 300)
 
     # ET parameter
     fETV1 = Uniform(0.01, 1, doc='if V<fETV1*V0, water uptake stress for '
-                    'plants starts')
-    fETV0 = Uniform(0, 0.9, doc='if V<fETV0*fETV1*V0, plants die of drought')
+                    'plants starts [%]')
+    fETV0 = Uniform(0, 0.9, doc='if V<fETV0*fETV1*V0, plants die of drought '
+                                '[%]')
 
     # Outflow parameters
-    tr_L1 = Uniform(0.1, 200, doc='Residence time of water in storage when '
-                    'V=V0')
-    beta_L1 = Uniform(0.5, 4, doc="Exponent for scaling the outflow")
+    tr_L1_out = Uniform(0.1, 200, doc='Residence time of water in storage '
+                                      'when '
+                    'V=V0 [days]')
+    tr_L1_L2 = Uniform(0.1, 200)
+    tr_L2_out = Uniform(0.1, 200)
+
+    beta_L1_out = Uniform(0.5, 4, doc="Exponent for scaling the outflow[]")
+    beta_L1_L2 = Uniform(0.5, 4)
+    beta_L2_out = Uniform(0.4, 4)
+
 
     # Snow parameters
-    snow_meltrate = Uniform(3, 10, doc="Meltrate of the snow")
-    snow_melt_temp = Uniform(0, 3.5, doc="Temperature at which the snow "
+    snow_meltrate = Uniform(3, 10, doc="Meltrate of the snow [(mm*degC)/day]")
+    snow_melt_temp = Uniform(0, 3.5, doc="Temperature at which the snow [degC]"
                              "melts")
+
+    # Canopy Parameters
+    LAI = Uniform(1, 12, doc="Leaf Area Index")
+    CanopyClosure = Uniform(0.1, 0.9, doc="Closure of the Canopy [%]")
 
     def __init__(self, begin=None, end=None, num_cells=None):
         """
@@ -118,9 +131,14 @@ class ScalingTester:
         # Result timeseries
         res_q = cmf.timeseries(self.begin, cmf.day)
 
-        # Start solver and calculate in daily steps
-        for t in solver.run(self.data.begin, self.end, cmf.day):
-            res_q.add(self.outlet.waterbalance(t))
+        try:
+            # Start solver and calculate in daily steps
+            for t in solver.run(self.data.begin, self.end, cmf.day):
+                res_q.add(self.outlet.waterbalance(t))
+        except RuntimeError:
+            return np.array(self.data.Q[
+                            self.data.begin:self.data.end + datetime.timedelta(
+                                days=1)])*np.nan
 
         return res_q
 
@@ -161,11 +179,14 @@ class CellTemplate:
         """
         # Add layers
         self.cell.add_layer(2.0)
+        self.cell.add_layer(4.0)
         # Install a connection for the ET
         cmf.HargreaveET(self.cell.layers[0], self.cell.transpiration)
         # Add Snow
         self.cell.add_storage("Snow", "S")
         cmf.Snowfall(self.cell.snow, self.cell)
+        # Create a storage for Interception
+        self.cell.add_storage("Canopy", "C")
 
     def set_parameters(self, par):
         """
@@ -178,21 +199,45 @@ class CellTemplate:
 
         # Scale to the cellsize
         V0_L1 = (par.V0_L1 / 1000) * self.area * 1e6
+        V0_L2 = (par.V0_L2 / 1000) * self.area * 1e6
 
         # Set uptake stress
         ETV1 = par.fETV1 * V0_L1
         ETV0 = par.fETV0 * ETV1
         c.set_uptakestress(cmf.VolumeStress(ETV1, ETV0))
 
-        # Connect layer with outlet
-        cmf.PowerLawConnection(c.layers[0], out, Q0=V0_L1 / par.tr_L1,
+        # Connect layer and outlet
+        cmf.PowerLawConnection(c.layers[0], out, Q0=V0_L1 / par.tr_L1_out,
                                V0=V0_L1,
-                               beta=par.beta_L1)
+                               beta=par.beta_L1_out)
+
+        cmf.PowerLawConnection(c.layers[0], c.layers[1], Q0=(V0_L1 /
+                                                            par.tr_L1_L2),
+                               V0=V0_L1, beta=par.beta_L1_L2)
+        cmf.PowerLawConnection(c.layers[1], out, Q0=V0_L2 / par.tr_L2_out,
+                               V0=V0_L2,
+                               beta=par.beta_L2_out)
 
         # Snow
         cmf.SimpleTindexSnowMelt(c.snow, c.layers[0], c,
                                  rate=par.snow_meltrate)
         cmf.Weather.set_snow_threshold(par.snow_melt_temp)
+
+        # Split the rainfall in interception and throughfall
+        cmf.Rainfall(c.canopy, c, False, True)
+        cmf.Rainfall(c.surfacewater, c, True, False)
+
+        # Make an overflow for the interception storage
+        cmf.RutterInterception(c.canopy, c.surfacewater, c)
+
+        # Transpiration from the plants is added
+        cmf.CanopyStorageEvaporation(c.canopy, c.evaporation, c)
+
+        # Sets the paramaters for interception
+        c.vegetation.LAI = par.LAI
+
+        # Defines how much throughfall there is (in %)
+        c.vegetation.CanopyClosure = par.CanopyClosure
 
 
 class DataProvider:
@@ -258,8 +303,8 @@ if __name__ == '__main__':
     # Check if we are running on a supercomputer or local
     parallel = 'mpi' if 'OMPI_COMM_WORLD_SIZE' in os.environ else 'seq'
 
-
-    runs = 100
+    # Run the models
+    runs = 5
     num_cells = [1, 2, 4, 8]
     results = {}
     for num in num_cells:
