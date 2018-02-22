@@ -295,7 +295,7 @@ if __name__ == '__main__':
     prefix = "intermediate_lumped"
 
     # Number of runs
-    runs = 100
+    runs = 100000
 
     # File names of the forcing data
     fnQ = "Q_Kammerzell_1979_1999.txt"
@@ -324,7 +324,8 @@ if __name__ == '__main__':
         runs = int(sys.argv[1])
     # run the model
     if runs:
-        sampler = Sampler(model, parallel=parallel, dbname="intermediate_lumped",
+        sampler = Sampler(model, parallel=parallel,
+                          dbname="intermediate_lumped_penman",
                           dbformat="csv", save_sim=True, save_threshold=[0.0,
                                                                         0.0])
 

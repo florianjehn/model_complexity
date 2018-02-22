@@ -264,7 +264,7 @@ if __name__ == '__main__':
     prefix = "intermediate_lumped"
 
     # Number of runs
-    runs = 100
+    runs = 100000
 
     # File names of the forcing data
     fnQ = "Q_Kammerzell_1979_1999.txt"
