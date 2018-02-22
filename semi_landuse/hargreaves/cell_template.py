@@ -64,9 +64,6 @@ class CellTemplate:
         # V0 must be adjusted to cell size as well
         V0_soil = params["V0_soil"]
         V0_soil = (V0_soil / 1000) * cell.area
-
-        V0_gw = params["V0_gw"]
-        V0_gw = (V0_gw / 1000) * cell.area
         
         # Adjustment of the ET
         cell.set_uptakestress(cmf.VolumeStress(
