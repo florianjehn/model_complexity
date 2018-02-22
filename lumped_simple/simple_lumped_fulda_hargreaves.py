@@ -272,7 +272,7 @@ if __name__ == '__main__':
     prefix = "simple_lumped"
 
     # Number of runs
-    runs = 15
+    runs = 100000
 
     # File names of the forcing data
     fnQ = "Q_Kammerzell_1979_1999.txt"
@@ -280,7 +280,7 @@ if __name__ == '__main__':
     fnP = "P_Krigavg_kammerzell_1979_1999.txt"
 
     # import algorithm
-    from spotpy.algorithms import lhs as Sampler
+    from spotpy.algorithms import rope as Sampler
     #Sampler = rope.rope
 
     # Find out if the model should run parallel (for supercomputer)
@@ -297,8 +297,9 @@ if __name__ == '__main__':
 
     # run the model
     if runs:
-        sampler = Sampler(model, parallel=parallel, dbname="simple_lumped",
+        sampler = Sampler(model, parallel=parallel,
+                          dbname="simple_lumped_hargreaves",
                           dbformat="csv", save_sim=True,save_threshold=0.0)
-        sampler.sample(runs)#, subsets=30)
+        sampler.sample(runs, subsets=30)
 
 
