@@ -69,7 +69,8 @@ class SemiDisLanduse:
                    "rest": 318.808}
 
         # Different input data types (except discharge)
-        input_data = ["T_avg", "T_min", "T_max", "prec"]
+        input_data = ["T_avg", "T_min", "T_max", "prec", "wind", "sunshine",
+                      "rel_hum"]
 
         # Read in the data for all subcatchments separately
         subcatchments = {}
@@ -284,7 +285,8 @@ if __name__ == '__main__':
     model = SemiDisLanduse(datetime.datetime(begin, 1, 1),
                            datetime.datetime(end, 12, 31),
                            subcatchment_names)
-    sampler = sampler(model, parallel=parallel, dbname="semi_dis_landuse",
+    sampler = sampler(model, parallel=parallel,
+                      dbname="semi_dis_landuse_penman",
                       dbformat="csv", save_sim=True, save_threshold=[0, 0])
     sampler.sample(runs, subsets=30)
     #print(cmf.describe(model.project))

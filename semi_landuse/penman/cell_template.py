@@ -42,7 +42,7 @@ class CellTemplate:
         I = self.cell.add_storage("Canopy", "C")
 
         # Install a connection for the ET
-        cmf.HargreaveET(self.cell.layers[0], self.cell.transpiration)
+        cmf.PenmanMonteithET(self.cell.layers[0], self.cell.transpiration)
 
     def set_parameters(self, params):
         """
@@ -127,5 +127,8 @@ class CellTemplate:
         meteo_station.T = self.data["T_avg"]
         meteo_station.Tmin = self.data["T_min"]
         meteo_station.Tmax = self.data["T_max"]
+        meteo_station.Windspeed = self.data["wind"]
+        meteo_station.SetSunshineFraction(self.data["sunshine"])
+        meteo_station.rHmean = self.data["rel_hum"]
 
         meteo_station.use_for_cell(self.cell)
