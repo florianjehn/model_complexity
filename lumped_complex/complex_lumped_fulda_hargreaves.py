@@ -306,7 +306,7 @@ if __name__ == '__main__':
     prefix = "complex_lumped"
 
     # Number of runs
-    runs = 10
+    runs = 100000
 
     # File names of the forcing data
     fnQ = "Q_Kammerzell_1979_1999.txt"
@@ -331,7 +331,7 @@ if __name__ == '__main__':
     # run the model
     if runs:
         sampler = Sampler(model, parallel=parallel,
-                          dbname="complex_lumped",
+                          dbname="complex_lumped_hargreaves",
                           dbformat="csv", save_sim=True, save_threshold=[0.0,
                                                                         0.0])
         sampler.sample(runs, subsets=30)

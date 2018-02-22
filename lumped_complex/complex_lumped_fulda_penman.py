@@ -356,7 +356,7 @@ if __name__ == '__main__':
     # run the model
     if runs:
         sampler = Sampler(model, parallel=parallel,
-                          dbname="complex_lumped",
+                          dbname="complex_lumped_penman",
                           dbformat="csv", save_sim=True, save_threshold=[0.0,
                                                                         0.0])
         sampler.sample(runs, subsets=30)
