@@ -61,12 +61,16 @@ class SemiDisLanduse:
         :return:
         """
         # Size of all subcatchments
-        sizes = {"crops": 147.107, "grass": 151.110, "wood": 215.157,
-                 "rest": 49.036}
+        sizes = {"crops_high": 13.009483985765122, "grass_high": 48.03501779359431, "wood_high": 79.05763345195729,
+                   "rest_high": 1.000729537366548, "crops_low": 134.09775800711745, "grass_low":
+                     103.07514234875444, "wood_low": 136.09921708185053,
+                   "rest_low": 48.03501779359431}
 
         # Average height of all subcatchments
-        heights = {"crops": 363.666, "grass": 439.544, "wood": 478.530,
-                   "rest": 318.808}
+        heights = {"crops_high": 535.760692308, "grass_high": 582.983291667, "wood_high": 633.839075949,
+                   "rest_high": 673.214, "crops_low": 346.971231343, "grass_low":
+                       372.699019417, "wood_low": 388.314742647,
+                   "rest_low": 311.424604167}
 
         # Different input data types (except discharge)
         input_data = ["T_avg", "T_min", "T_max", "prec"]
@@ -272,7 +276,9 @@ if __name__ == '__main__':
     runs = 100000
 
     # File names of the forcing data
-    subcatchment_names = ["grass", "wood", "rest", "crops"]
+    subcatchment_names = ["grass_high", "wood_high", "rest_high",
+                          "crops_high", "grass_low",
+                          "wood_low", "rest_low", "crops_low"]
 
     # import algorithm
     from spotpy.algorithms import rope as sampler
@@ -284,7 +290,8 @@ if __name__ == '__main__':
     model = SemiDisLanduse(datetime.datetime(begin, 1, 1),
                            datetime.datetime(end, 12, 31),
                            subcatchment_names)
-    sampler = sampler(model, parallel=parallel, dbname="semi_dis_landuse",
+    sampler = sampler(model, parallel=parallel,
+                      dbname="semi_dis_landuse_height_hargreaves",
                       dbformat="csv", save_sim=True, save_threshold=[0, 0])
     sampler.sample(runs, subsets=30)
     #print(cmf.describe(model.project))
