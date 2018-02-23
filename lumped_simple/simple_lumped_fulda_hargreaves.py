@@ -250,12 +250,13 @@ class SimpleLumped(object):
         evaluation_validation = evaluation[1827:]
         simulation_calibration = simulation[:1827]
         simulation_validation = simulation[1827:]
-        ns_calibration = spotpy.objectivefunctions.nashsutcliffe(
+        ns_calibration = spotpy.objectivefunctions.kge(
                                                         evaluation_calibration,
-                                                        simulation_calibration)
-        ns_validation = spotpy.objectivefunctions.nashsutcliffe(
+                                                        simulation_calibration,
+        )
+        ns_validation = spotpy.objectivefunctions.kge(
                                                         evaluation_validation,
-                                                        simulation_validation)
+                                                        simulation_validation,)
         return [ns_calibration, ns_validation]
 
 
@@ -299,7 +300,8 @@ if __name__ == '__main__':
     if runs:
         sampler = Sampler(model, parallel=parallel,
                           dbname="simple_lumped_hargreaves",
-                          dbformat="csv", save_sim=True,save_threshold=0.0)
+                          dbformat="csv", save_sim=True,save_threshold=[0.0,
+                                                                        0.0])
         sampler.sample(runs, subsets=30)
 
 

@@ -15,10 +15,14 @@
 
 #$ -m eas                  #notify bycd fh mail on end, abort, suspend
 
-
 export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+export OMP_NUM_THREADS=1
+export SPOTPYRUNS=100000
 
 date                             #log start time
+echo $@                          # log script name
 export PYTHONPATH=$PYTHONPATH:/homes/sf1962/.local/lib/python3.5/site-packages
 mpirun python3 $@       #start program
 

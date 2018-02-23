@@ -221,10 +221,10 @@ class SemiDisLanduse:
         simulation_calibration = simulation[:1827]
         simulation_validation = simulation[1827:]
 
-        ns_calibration = spotpy.objectivefunctions.nashsutcliffe(
+        ns_calibration = spotpy.objectivefunctions.kge(
                                                         evaluation_calibration,
                                                         simulation_calibration)
-        ns_validation = spotpy.objectivefunctions.nashsutcliffe(
+        ns_validation = spotpy.objectivefunctions.kge(
                                                         evaluation_validation,
                                                         simulation_validation)
         if ns_calibration > 1:
@@ -266,6 +266,7 @@ if __name__ == '__main__':
                            datetime.datetime(end, 12, 31),
                            subcatchment_names)
 
-    sampler = sampler(model, parallel=parallel, dbname="semi_dis_height",
+    sampler = sampler(model, parallel=parallel,
+                      dbname="semi_dis_landuse_penman",
                       dbformat="csv", save_sim=True, save_threshold=[0,0])
     sampler.sample(runs)#, subsets=30)

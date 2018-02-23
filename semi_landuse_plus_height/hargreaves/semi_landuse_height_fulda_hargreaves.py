@@ -243,10 +243,10 @@ class SemiDisLanduse:
         simulation_calibration = simulation[:1827]
         simulation_validation = simulation[1827:]
 
-        ns_calibration = spotpy.objectivefunctions.nashsutcliffe(
+        ns_calibration = spotpy.objectivefunctions.kge(
                                                         evaluation_calibration,
                                                         simulation_calibration)
-        ns_validation = spotpy.objectivefunctions.nashsutcliffe(
+        ns_validation = spotpy.objectivefunctions.kge(
                                                         evaluation_validation,
                                                         simulation_validation)
         # if ns_calibration > 0:
