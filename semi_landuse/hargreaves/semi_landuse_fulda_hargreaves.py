@@ -83,11 +83,12 @@ class SemiDisLanduse:
                 timeseries = self.read_timeseries(name)
                 subcatchments[sub]["data"][data_type] = timeseries
 
-        dis_eval = self.read_timeseries("dis_eval_kaemmerzell_79_89.txt")
+        dis_eval = self.read_timeseries("dis_eval_kaemmerzell_79_89.txt",
+                                        convert=True)
 
         return dis_eval, subcatchments
 
-    def read_timeseries(self, timeseries_name):
+    def read_timeseries(self, timeseries_name, convert=False):
         """
         Loads in a timeseries and returns it
 
@@ -105,9 +106,9 @@ class SemiDisLanduse:
         timeseries.extend(float(value.strip("\n")) for value in open(
             timeseries_name))
 
-#        if convert:
-#            area_catchment = 562.41
-#            timeseries *= 86400 * 1e3 / (area_catchment * 1e6)
+        if convert:
+            area_catchment = 562.41
+            timeseries *= 86400 * 1e3 / (area_catchment * 1e6)
 
         return timeseries
 
@@ -171,8 +172,6 @@ class SemiDisLanduse:
 
                 # Fill the results (first year is included but not used to
                 # calculate the NS)
-                # print(self.project.cells[0].layers[0].flux_to(self.outlet,t )
-                # )
                 if t >= self.begin:
                     dis_sim.add(self.outlet.waterbalance(t))
 
@@ -182,9 +181,6 @@ class SemiDisLanduse:
             dis_sim = np.array(self.dis_eval[
                             self.begin:self.end + datetime.timedelta(days=1)])\
                       * np.nan
-            # ET = np.array(self.dis_eval[
-            #                 self.begin:self.end + datetime.timedelta
-            # (days=1)])*np.nan
             return dis_sim
 
     def simulation(self, vector):
@@ -195,15 +191,12 @@ class SemiDisLanduse:
         paramdict = dict((pp.name, v) for pp, v in zip(self.params, vector))
         self.set_parameters(paramdict)
         discharge = self.run_model()
-        # print("Simulation")
-        # print(discharge.begin, discharge.end)
-        # print(type(discharge))
-        # print(len(discharge))
         discharge = np.array(discharge)
         # CMF outputs discharge in m³/day
-        # Measured discharge is in m³/s
-        # Divide m³/day by 86400 to get to m³/s
-        discharge /= 86400
+        # Measured discharge is in m³/s but is internally converted to mm
+        # Convert CMF output to mm as well
+        area_catchment = 562.41
+        discharge = (discharge * 1000) / (area_catchment * 1e6)
         # self.discharge = discharge
         return discharge
 
@@ -215,10 +208,6 @@ class SemiDisLanduse:
         # datetime objects
         dis_eval = self.dis_eval[self.begin:self.end +
                                  datetime.timedelta(days=1)]
-        # print("Evaluation")
-        # print(dis_eval.begin, dis_eval.end)
-        # print(type(dis_eval))
-        # print(len(dis_eval))
         return np.array(dis_eval)
 
     def parameters(self):
@@ -245,17 +234,6 @@ class SemiDisLanduse:
         ns_validation = spotpy.objectivefunctions.kge(
                                                         evaluation_validation,
                                                         simulation_validation)
-        # if ns_calibration > 0:
-        #     plt.plot(simulation * 86400, label="simulation_"+str(
-        #         ns_calibration),
-        #              alpha=0.7)
-        #     plt.plot(evaluation * 86400, label="evaluation", alpha=0.7)
-        #     plt.plot(model.ET, label="ET", alpha=0.7)
-        #     plt.legend()
-        #     name = "test_" + str(datetime.datetime.timestamp(
-        #         datetime.datetime.now()))+".jpg"
-        #     plt.savefig(name, dpi=300)
-        #     plt.close()
 
         return [ns_calibration, ns_validation]
 
@@ -288,4 +266,3 @@ if __name__ == '__main__':
                       dbname="semi_dis_landuse_hargreaves",
                       dbformat="csv", save_sim=True, save_threshold=[0, 0])
     sampler.sample(runs, subsets=30)
-    #print(cmf.describe(model.project))
