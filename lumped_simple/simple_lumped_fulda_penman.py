@@ -112,7 +112,7 @@ class SimpleLumped(object):
 
         # # Set parameters of the snow calculations
         cmf.Weather.set_snow_threshold(snow_melt_temp)
-        snowmelt = cmf.SimpleTindexSnowMelt(c.snow, soil, c, rate=meltrate)
+        cmf.SimpleTindexSnowMelt(c.snow, soil, c, rate=meltrate)
 
     def loadPETQ(self):
         """
