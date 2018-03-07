@@ -197,7 +197,6 @@ class SemiDisLanduse:
         # Convert CMF output to mm as well
         area_catchment = 562.41
         discharge = (discharge * 1000) / (area_catchment * 1e6)
-        # self.discharge = discharge
         return discharge
 
     def evaluation(self):
