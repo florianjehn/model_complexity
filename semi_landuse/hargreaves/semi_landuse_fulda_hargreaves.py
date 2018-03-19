@@ -145,7 +145,16 @@ class SemiDisLanduse:
                   param('meltrate', 0.01, 12.),
                   # Snow_melt_temp = Temperature at which the snow melts
                   # (needed because of averaged temp (for the low region)
-                  param('snow_melt_temp', -3.0, 3.0),
+                  param('snow_melt_temp_grass', -3.0, 3.0),
+                  # Snow_melt_temp = Temperature at which the snow melts
+                  # (needed because of averaged temp (for the low region)
+                  param('snow_melt_temp_wood', -3.0, 3.0),
+                  # Snow_melt_temp = Temperature at which the snow melts
+                  # (needed because of averaged temp (for the low region)
+                  param('snow_melt_temp_rest', -3.0, 3.0),
+                  # Snow_melt_temp = Temperature at which the snow melts
+                  # (needed because of averaged temp (for the low region)
+                  param('snow_melt_temp_crops', -3.0, 3.0),
                   # LAI = leaf area index
                   param('LAI', 1., 12),
                   # Canopy Closure
@@ -252,7 +261,7 @@ if __name__ == '__main__':
     subcatchment_names = ["grass", "wood", "rest", "crops"]
 
     # import algorithm
-    from spotpy.algorithms import rope as sampler
+    from spotpy.algorithms import lhs as sampler
 
     # Find out if the model should run parallel (for supercomputer)
     parallel = 'mpi' if 'OMPI_COMM_WORLD_SIZE' in os.environ else 'seq'
@@ -264,4 +273,4 @@ if __name__ == '__main__':
     sampler = sampler(model, parallel=parallel,
                       dbname="semi_dis_landuse_hargreaves",
                       dbformat="csv", save_sim=True, save_threshold=[0, 0])
-    sampler.sample(runs, subsets=30)
+    sampler.sample(runs)#, subsets=30)
