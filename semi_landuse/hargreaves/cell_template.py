@@ -103,8 +103,7 @@ class CellTemplate:
         cell.vegetation.CanopyClosure = params["CanopyClosure"]
 
         # # Set parameters of the snow calculations
-        # Use the one for the specific catchment
-        cmf.Weather.set_snow_threshold(params["snow_melt_temp_" + self.name])
+        cmf.Weather.set_snow_threshold(params["snow_melt_temp"])
         cmf.SimpleTindexSnowMelt(cell.snow, soil, cell,
                                  rate=params["meltrate"])
 
